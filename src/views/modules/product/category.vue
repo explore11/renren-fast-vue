@@ -1,7 +1,7 @@
 <template>
   <div>
     <el-tree
-      :data="data"
+      :data="menus"
       :props="defaultProps"
       @node-click="handleNodeClick"
     ></el-tree>
@@ -14,10 +14,10 @@ export default {
   components: {},
   data() {
     return {
-      data: [],
+      menus: [],
       defaultProps: {
         children: "children",
-        label: "label",
+        label: "name",
       },
     };
   },
@@ -30,8 +30,8 @@ export default {
       this.$http({
         url: this.$http.adornUrl("/product/category/list/tree"),
         method: "get",
-      }).then((data) => {
-        console.log("返回数据", data);
+      }).then(({data}) => {  // {data}  结构函数  返回的数据中  取data字段
+          this.menus = data.categoryEntityList;
       });
     },
   },
