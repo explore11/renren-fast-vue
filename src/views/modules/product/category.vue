@@ -1,13 +1,31 @@
 <template>
   <div>
-    <el-tree :data="menus" :props="defaultProps" @node-click="handleNodeClick" show-checkbox :expand-on-click-node="false" node-key="catId">
+    <el-tree
+      :data="menus"
+      :props="defaultProps"
+      @node-click="handleNodeClick"
+      show-checkbox
+      :expand-on-click-node="false"
+      node-key="catId"
+      :default-expanded-keys="expandKeys"
+    >
       <span class="custom-tree-node" slot-scope="{ node, data }">
         <span>{{ node.label }}</span>
         <span>
-          <el-button v-if="node.level <= 2" type="text" size="mini" @click="() => append(data)">
+          <el-button
+            v-if="node.level <= 2"
+            type="text"
+            size="mini"
+            @click="() => append(data)"
+          >
             新增
           </el-button>
-          <el-button v-if="node.childNodes.length==0"  type="text" size="mini" @click="() => remove(node, data)">
+          <el-button
+            v-if="node.childNodes.length == 0"
+            type="text"
+            size="mini"
+            @click="() => remove(node, data)"
+          >
             删除
           </el-button>
         </span>
@@ -23,6 +41,7 @@ export default {
   data() {
     return {
       menus: [],
+      expandKeys: [],
       defaultProps: {
         children: "children",
         label: "name",
@@ -48,8 +67,37 @@ export default {
     },
 
     remove(node, data) {
-      console.log("remove data", data);
-      console.log("remove node", node);
+      console.log(node)
+      // 数据
+      var ids = [data.catId];
+      this.$confirm(`此操作将永久删除${data.name}菜单, 是否继续?`, "提示", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning",
+      })
+        .then(() => {
+          // 确认删除 发出请求
+          this.$http({
+            url: this.$http.adornUrl("/product/category/delete"),
+            method: "post",
+            data: this.$http.adornData(ids, false),
+          }).then(({ data }) => {
+            this.$message({
+              message: "菜单删除成功",
+              type: "success",
+            });
+            // 刷新数据
+            this.getDataListTree();
+            //设置默认展开的节点
+            this.expandKeys = [node.parent.data.catId]
+          });
+        })
+        .catch(() => {
+          this.$message({
+            type: "info",
+            message: "已取消删除",
+          });
+        });
     },
   },
 
