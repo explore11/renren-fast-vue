@@ -8,6 +8,8 @@
       :expand-on-click-node="false"
       node-key="catId"
       :default-expanded-keys="expandKeys"
+      draggable
+      :allow-drop="allowDrop"
     >
       <span class="custom-tree-node" slot-scope="{ node, data }">
         <span>{{ node.label }}</span>
@@ -34,7 +36,12 @@
       </span>
     </el-tree>
 
-    <el-dialog :title="title" :visible.sync="dialogVisible" width="30%" :close-on-click-modal="false">
+    <el-dialog
+      :title="title"
+      :visible.sync="dialogVisible"
+      width="30%"
+      :close-on-click-modal="false"
+    >
       <el-form :model="category">
         <el-form-item label="菜单名称">
           <el-input v-model="category.name" autocomplete="off"></el-input>
@@ -63,6 +70,7 @@ export default {
   components: {},
   data() {
     return {
+      maxLevel: 1,
       title: "",
       editCategoryType: "",
       category: {
@@ -89,7 +97,33 @@ export default {
     handleNodeClick(data) {
       console.log(data);
     },
-
+    // 可拖拽
+    allowDrop(draggingNode, dropNode, type) {
+      console.log("可拖拽", draggingNode, dropNode, type);
+      // 计算当前节点的最大深度
+      this.getNodeDeep(draggingNode.data);
+      console.log("计算当前节点的最大深度", this.maxLevel);
+      // 计算要增加的深度
+      let deep = this.maxLevel - draggingNode.level + 1;
+      console.log("深度", deep);
+      // 根据类型判断
+      if (type == "inner") {
+        return deep + dropNode.level <= 3;
+      } else {
+        return deep + dropNode.parent.level <= 3;
+      }
+    },
+    // 计算当前节点的最大深度
+    getNodeDeep(node) {
+      if (node.children != null && node.children.length > 0) {
+        for (let i = 0; i < node.children.length; i++) {
+          if (node.children[i].catLevel > this.maxLevel) {
+            this.maxLevel = node.children[i].catLevel;
+          }
+          this.getNodeDeep(node.children[i]);
+        }
+      }
+    },
     // 提交方式
     submitData() {
       if (this.editCategoryType == "add") {
