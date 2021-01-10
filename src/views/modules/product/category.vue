@@ -1,5 +1,8 @@
 <template>
   <div>
+    <el-switch v-model="draggable" active-text="开启拖拽" inactive-text="关闭拖拽">
+    </el-switch>
+    <el-button type="primary" @click="saveCategorySort">保存</el-button>
     <el-tree
       :data="menus"
       :props="defaultProps"
@@ -8,7 +11,7 @@
       :expand-on-click-node="false"
       node-key="catId"
       :default-expanded-keys="expandKeys"
-      draggable
+      :draggable="draggable"
       :allow-drop="allowDrop"
       @node-drop="handleDrop"
     >
@@ -71,6 +74,8 @@ export default {
   components: {},
   data() {
     return {
+      pCid:[],
+      draggable:false,
       updateNodes: [],
       maxLevel: 0,
       title: "",
@@ -99,18 +104,45 @@ export default {
     handleNodeClick(data) {
       console.log(data);
     },
+
+    saveCategorySort(){
+        // 调用接口
+      this.$http({
+        url: this.$http.adornUrl("/product/category/update/sort"),
+        method: "post",
+        data: this.$http.adornData(this.updateNodes, false)
+      }).then(({ data }) => {
+        this.$message({
+          message: "菜单顺序修改成功",
+          type: "success"
+        });
+        // 刷新数据
+        this.getDataListTree();
+        //设置默认展开的节点
+        this.expandKeys = this.pCid;
+        // 返回初始值
+        this.updateNodes = [];
+        this.maxLevel = 0;
+        this.pCid=[];
+      });
+    },
     handleDrop(draggingNode, dropNode, dropType, ev) {
       console.log("handleDrop: ", draggingNode, dropNode, dropType);
       // 1、当前拖拽节点最新的父节点
       let pCid = 0;
       let siblings = null;
       if (dropType == "before" || dropType == "after") {
-        pCid = dropNode.parent.data.catId == undefined?0:dropNode.parent.data.catId;
+        pCid =
+          dropNode.parent.data.catId == undefined
+            ? 0
+            : dropNode.parent.data.catId;
         siblings = dropNode.parent.childNodes;
       } else {
         pCid = dropNode.data.catId;
         siblings = dropNode.childNodes;
       }
+      this.pCid.push(pCid);
+
       console.log("siblings: ", siblings);
       // 2、当前拖拽的最新顺序
       for (let index = 0; index < siblings.length; index++) {
@@ -139,26 +171,6 @@ export default {
           });
         }
       }
-
-      // 调用接口
-      this.$http({
-        url: this.$http.adornUrl("/product/category/update/sort"),
-        method: "post",
-        data: this.$http.adornData(this.updateNodes, false)
-      }).then(({ data }) => {
-        this.$message({
-          message: "菜单顺序修改成功",
-          type: "success"
-        });
-        // 刷新数据
-        this.getDataListTree();
-        //设置默认展开的节点
-        this.expandKeys = [pCid];
-        // 返回初始值
-        this.updateNodes = [];
-        this.maxLevel = 0;
-      });
-
       console.log("updateNodes: ", this.updateNodes);
     },
     updateChildNode(node) {
@@ -176,12 +188,14 @@ export default {
     },
     // 可拖拽
     allowDrop(draggingNode, dropNode, type) {
+      this.maxLevel = 0;
       console.log("可拖拽", draggingNode, dropNode, type);
       // 计算当前节点的最大深度
-      this.getNodeDeep(draggingNode.data);
+      this.getNodeDeep(draggingNode);
       console.log("计算当前节点的最大深度", this.maxLevel);
       // 计算要增加的深度
-      let deep = this.maxLevel - draggingNode.level + 1;
+      let deep = Math.abs(this.maxLevel - draggingNode.level) + 1;
+      // let deep = this.maxLevel - draggingNode.level + 1;
       console.log("深度", deep);
       // 根据类型判断
       if (type == "inner") {
@@ -192,12 +206,12 @@ export default {
     },
     // 计算当前节点的最大深度
     getNodeDeep(node) {
-      if (node.children != null && node.children.length > 0) {
-        for (let i = 0; i < node.children.length; i++) {
-          if (node.children[i].catLevel > this.maxLevel) {
-            this.maxLevel = node.children[i].catLevel;
+      if (node.childNodes != null && node.childNodes.length > 0) {
+        for (let i = 0; i < node.childNodes.length; i++) {
+          if (node.childNodes[i].level > this.maxLevel) {
+            this.maxLevel = node.childNodes[i].level;
           }
-          this.getNodeDeep(node.children[i]);
+          this.getNodeDeep(node.childNodes[i]);
         }
       }
     },
