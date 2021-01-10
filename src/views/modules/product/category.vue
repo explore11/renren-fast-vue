@@ -10,6 +10,7 @@
       :default-expanded-keys="expandKeys"
       draggable
       :allow-drop="allowDrop"
+      @node-drop="handleDrop"
     >
       <span class="custom-tree-node" slot-scope="{ node, data }">
         <span>{{ node.label }}</span>
@@ -70,7 +71,8 @@ export default {
   components: {},
   data() {
     return {
-      maxLevel: 1,
+      updateNodes: [],
+      maxLevel: 0,
       title: "",
       editCategoryType: "",
       category: {
@@ -96,6 +98,81 @@ export default {
   methods: {
     handleNodeClick(data) {
       console.log(data);
+    },
+    handleDrop(draggingNode, dropNode, dropType, ev) {
+      console.log("handleDrop: ", draggingNode, dropNode, dropType);
+      // 1、当前拖拽节点最新的父节点
+      let pCid = 0;
+      let siblings = null;
+      if (dropType == "before" || dropType == "after") {
+        pCid = dropNode.parent.data.catId == undefined?0:dropNode.parent.data.catId;
+        siblings = dropNode.parent.childNodes;
+      } else {
+        pCid = dropNode.data.catId;
+        siblings = dropNode.childNodes;
+      }
+      console.log("siblings: ", siblings);
+      // 2、当前拖拽的最新顺序
+      for (let index = 0; index < siblings.length; index++) {
+        if (siblings[index].data.catId == draggingNode.data.catId) {
+          // 如果遍历的是当前正在拖拽的节点
+          let catLevel = draggingNode.data.catLevel;
+          //如果拖拽的节点和拖拽完毕之后的层级发生改变
+          if (siblings[index].level != draggingNode.level) {
+            // 根据类型判断层次
+            catLevel = siblings[index].level;
+          }
+
+          this.updateNodes.push({
+            catId: siblings[index].data.catId,
+            sort: index,
+            parentCid: pCid,
+            catLevel: catLevel
+          });
+
+          // 修改子节点的层级
+          this.updateChildNode(siblings[index]);
+        } else {
+          this.updateNodes.push({
+            catId: siblings[index].data.catId,
+            sort: index
+          });
+        }
+      }
+
+      // 调用接口
+      this.$http({
+        url: this.$http.adornUrl("/product/category/update/sort"),
+        method: "post",
+        data: this.$http.adornData(this.updateNodes, false)
+      }).then(({ data }) => {
+        this.$message({
+          message: "菜单顺序修改成功",
+          type: "success"
+        });
+        // 刷新数据
+        this.getDataListTree();
+        //设置默认展开的节点
+        this.expandKeys = [pCid];
+        // 返回初始值
+        this.updateNodes = [];
+        this.maxLevel = 0;
+      });
+
+      console.log("updateNodes: ", this.updateNodes);
+    },
+    updateChildNode(node) {
+      if (node.childNodes.length > 0) {
+        for (let index = 0; index < node.childNodes.length; index++) {
+          this.updateNodes.push({
+            catId: node.childNodes[index].data.catId,
+            catLevel: node.childNodes[index].level,
+            sort: index
+          });
+          // 递归添加
+          this.updateChildNode(node.childNodes[index]);
+        }
+      }
     },
     // 可拖拽
     allowDrop(draggingNode, dropNode, type) {
