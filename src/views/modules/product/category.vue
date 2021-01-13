@@ -1,8 +1,13 @@
 <template>
   <div>
-    <el-switch v-model="draggable" active-text="开启拖拽" inactive-text="关闭拖拽">
+    <el-switch
+      v-model="draggable"
+      active-text="开启拖拽"
+      inactive-text="关闭拖拽"
+    >
     </el-switch>
     <el-button type="primary" @click="saveCategorySort">保存</el-button>
+    <el-button type="danger" @click="batchDelete">批量删除</el-button>
     <el-tree
       :data="menus"
       :props="defaultProps"
@@ -14,6 +19,7 @@
       :draggable="draggable"
       :allow-drop="allowDrop"
       @node-drop="handleDrop"
+      ref="Menutree"
     >
       <span class="custom-tree-node" slot-scope="{ node, data }">
         <span>{{ node.label }}</span>
@@ -74,8 +80,8 @@ export default {
   components: {},
   data() {
     return {
-      pCid:[],
-      draggable:false,
+      pCid: [],
+      draggable: false,
       updateNodes: [],
       maxLevel: 0,
       title: "",
@@ -104,9 +110,47 @@ export default {
     handleNodeClick(data) {
       console.log(data);
     },
+    batchDelete() {
+      let nodes = this.$refs.Menutree.getCheckedNodes();
+      let categoryIds = [];
+      let categoryNames = [];
+      for (let index = 0; index < nodes.length; index++) {
+        categoryIds.push(nodes[index].catId);
+        categoryNames.push(nodes[index].name);
+      }
+      console.log("nodes", nodes);
+      console.log("categoryIds", categoryIds);
+      console.log("categoryNames", categoryNames);
 
-    saveCategorySort(){
-        // 调用接口
+      this.$confirm(`此操作将永久删除${categoryNames}菜单, 是否继续?`, "提示", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning"
+      })
+        .then(() => {
+          // 确认删除 发出请求
+          this.$http({
+            url: this.$http.adornUrl("/product/category/delete"),
+            method: "post",
+            data: this.$http.adornData(categoryIds, false)
+          }).then(({ data }) => {
+            this.$message({
+              message: "菜单批量删除成功",
+              type: "success"
+            });
+            // 刷新数据
+            this.getDataListTree();
+          });
+        })
+        .catch(() => {
+          this.$message({
+            type: "info",
+            message: "已取消删除"
+          });
+        });
+    },
+    saveCategorySort() {
+      // 调用接口
       this.$http({
         url: this.$http.adornUrl("/product/category/update/sort"),
         method: "post",
@@ -123,7 +167,7 @@ export default {
         // 返回初始值
         this.updateNodes = [];
         this.maxLevel = 0;
-        this.pCid=[];
+        this.pCid = [];
       });
     },
     handleDrop(draggingNode, dropNode, dropType, ev) {
