@@ -142,6 +142,7 @@ export default {
           key: this.dataForm.key
         })
       }).then(({ data }) => {
+        console.log(data)
         if (data && data.code === 0) {
           this.dataList = data.page.list;
           this.totalPage = data.page.totalCount;
